@@ -1,0 +1,29 @@
+plugins {
+	id 'java'
+	id 'groovy'
+}
+
+ext {
+	geoserverVersion = '2.11-SNAPSHOT'
+}
+
+repositories {
+	maven {
+		url 'https://repo.boundlessgeo.com/main/'
+	}
+	mavenCentral()
+}
+
+configurations {
+	compile.exclude module: 'commons-beanutils'
+}
+
+dependencies {
+	compile 'xml-apis:xml-apis:1.0.b2'
+	compile('org.geoscript:geoscript-groovy:1.7.0'){exclude module: 'xml-apis'}
+	compile 'commons-beanutils:commons-beanutils:1.9.2:noclassprop@jar'
+	compile "org.geoserver.extension:gs-wps-core:${geoserverVersion}"
+	compile "org.geoserver:gs-main:${geoserverVersion}"
+
+	testCompile('org.spockframework:spock-core:1.0-groovy-2.4'){exclude module: 'groovy-all'}	
+}
