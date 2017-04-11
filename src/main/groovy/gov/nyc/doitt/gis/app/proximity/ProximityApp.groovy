@@ -9,56 +9,67 @@ import geoscript.layer.Layer
 import geoscript.filter.Filter
 import geoscript.layer.io.GeoJSONWriter
 
+import geoscript.feature.*
+
 def run(request, response){
 	def params = getParams(request)
 	def layer = getLayer(params)
-	//def filter = getFilter(layer, params)
-            
-	//def result = layer.filter(filter, layer.name)
-	
-	def proc = new Process("gs:Query")
-	def result = proc.execute([features: layer, filter: getFilter(layer, params)])
-	
-	GeoJSONWriter writer = new GeoJSONWriter()
-
-	response.setEntity(writer.write(result), MediaType.APPLICATION_JSON)
+	def filtered = new Layer(layer.name, layer.schema)
+	def filter = getFilter(layer, params)
+	def features = layer.getFeatures(filter)
+	filtered.add(features)
+	def result = addDistance(filtered, params)
+	response.setEntity(new GeoJSONWriter().write(result), MediaType.APPLICATION_JSON)
 }
 
 def getParams(request){
 	return request.getResourceRef().getQueryAsForm()
 }
 
-def getFilter(layer, params){
-	def geomCol = layer.schema.geom.name
-	def point = params.getFirstValue('point')
-	
-	return "<ogc:Filter xmlns:ogc=\"http://www.opengis.net/ogc\"><ogc:DWithin><ogc:PropertyName>${geomCol}<ogc:/PropertyName><gml:Point srsName=\"http://www.opengis.net/gml/srs/epsg.xml#2263\"xmlns:gml=\"http://www.opengis.net/gml\"><gml:coordinates decimal=\".\" cs=\",\" ts=\" \">${point}</gml:coordinates></gml:Point><ogc:Distance units=\"feet\">7000<ogc:/Distance><ogc:/DWithin><ogc:/Filter>"
-
-	/*
-	def point = getPoint(params)
-	def distance = getDistance(params)
-	def geomCol = layer.schema.geom.name
-	return Filter.dwithin(geomCol, point, distance, 'feet')
-	*/
-}
-
-def getPoint(params){
-	def pointStr = params.getFirstValue('point')
-	def coord = pointStr.split(',')
-	def x = new Double(coord[0])
-	def y = new Double(coord[1])
-	return new Point(x, y)
-}
-
-def getDistance(params){
-	return new Double(params.getFirstValue('distance'))
-}
-
 def getLayer(params){
 	def layerName = params.getFirstValue('layer')
 	def gsLayer = new GeoServer().catalog.getLayer(layerName)
 	return gsLayer.geoScriptLayer
-
 }
 
-//http://localhost:8080/geoserver/script/apps/proximity/?point=993020,222220&layer=test:boro&distance=1000
+def getFilter(layer, params){
+	def geomCol = layer.schema.geom.name
+	def point = params.getFirstValue('point')
+	def distance = params.getFirstValue('distance')
+	def units = params.getFirstValue('units')
+	return "DWITHIN(${geomCol}, POINT(${point}), ${distance}, ${units})"
+}
+
+def addDistance(inLayer, params){
+	def coord = params.getFirstValue('point').split(' ')
+	def x = new Double(coord[0])
+	def y = new Double(coord[1])
+	def inPoint = new Point(x, y) 
+	List fields = inLayer.schema.fields
+	fields.add(new Field('distance', 'Double'))
+	Schema schema = new Schema(inLayer.name, fields)
+	List outFeatures = []
+
+	inLayer.eachFeature { inFeature ->
+		def geom = inFeature.getGeom()
+		def distance = geom.distance(inPoint)
+		def attrs = inFeature.getAttributes()
+		attrs.put('distance', distance)
+		Feature outFeature = new Feature(attrs, inFeature.getId())
+		outFeatures.add(outFeature)
+	}
+	
+	Layer result = new Layer(inLayer.name, schema)
+	outFeatures.sort{it.get('distance')}
+	outFeatures.each { outFeature ->
+		result.add(outFeature)
+	}
+	
+	return result
+}
+
+
+
+
+
+//http://localhost:8080/geoserver/script/apps/proximity/?point=993020 222220&layer=test:boro&distance=1000&units=feet

@@ -41,6 +41,6 @@ def run(input){
 		result.add(outFeature)
 	}
 	
-	[result: result]
+	return [result: result]
 }
 
