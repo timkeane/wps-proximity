@@ -4,7 +4,6 @@ import java.util.List
 
 import geoserver.GeoServer
 
-import geoscript.process.Process
 import geoscript.geom.Point
 import geoscript.layer.Layer
 import geoscript.filter.Filter
@@ -13,12 +12,11 @@ import geoscript.geom.io.WktWriter
 import geoscript.feature.*
 import geoscript.proj.Projection
 
-import java.time.LocalDateTime
-
 CATALOG = new GeoServer().catalog
 WKT = new WktWriter()
+UNITS = [foot_survey_us: 'feet', m: 'meters' , '°': 'degrees']
 
-LOG = new File('e:/log.txt')
+/* Begin GeoServer WPS metadata */
 
 title = 'Proximity'
 description = 'Proximity'
@@ -36,34 +34,53 @@ outputs = [
 	result: [name: 'result', title: 'result', type: Layer.class]
 ]
 
+/* End GeoServer WPS metadata */
+
 def run(input){
-	LOG.append(LocalDateTime.now().toString() + ' begin wps\n')
 	def layer = CATALOG.getLayer(input.layer).geoScriptLayer
 	def distance = input.distance
 	def units = input.units
 	def requestedPrj = input.srs
 	def point = new Point(input.x, input.y)
-	LOG.append(LocalDateTime.now().toString() + ' begin get filter\n')
 	def filter = getFilter(layer, distance, units, requestedPrj, point)
-	LOG.append(LocalDateTime.now().toString() + ' end get filter\n')
-	LOG.append(LocalDateTime.now().toString() + ' begin query\n')
 	def features = layer.getFeatures(filter)
-	LOG.append(LocalDateTime.now().toString() + ' end query\n')
-	LOG.append(LocalDateTime.now().toString() + ' begin distance\n')
-	def result = addDistance(layer, features, point, requestedPrj)
-	LOG.append(LocalDateTime.now().toString() + ' end distance\n\n')
+	def result = addDistance(layer, features, point, requestedPrj, units)
 	return [result: result]
 }
 
 def getFilter(layer, distance, units, requestedPrj, point){
-	def layerPrj = layer.getProj().getEpsg()
+	def layerPrj = layer.getProj()
+	def layerUnits = getLayerUnits(layerPrj)
+	def qDistance = convertUnits(distance, units, layerUnits)
 	def geomCol = layer.schema.geom.name
-	point = Projection.transform(point, requestedPrj, "epsg:${layerPrj}")
-	point = WKT.write(point)
-	return "DWITHIN(${geomCol}, ${point}, ${distance}, ${units})"
+	def prjPoint = Projection.transform(point, requestedPrj, "epsg:${layerPrj.getEpsg()}")
+	prjPoint = WKT.write(prjPoint)
+	return "DWITHIN(${geomCol}, ${prjPoint}, ${qDistance}, ${layerUnits})"
 }
 
-def getSNewSchema(layer, requestedPrj){
+def convertUnits(distance, fromUnits, toUnits){
+	def result = distance	
+	if (fromUnits != toUnits){
+		if (fromUnits == 'meters' && toUnits == 'feet'){
+			result = distance * 3.28084
+		}else if (fromUnits == 'feet' && toUnits == 'meters'){
+			result = distance * 0.3048
+		}
+	}	
+	return result
+}
+
+def getLayerUnits(layerPrj){
+	def crs = layerPrj.crs.getCoordinateSystem()
+	def axis = crs.getAxis(crs.getDimension() - 1)
+	def layerUnits = UNITS.get(axis.getUnit().toString())
+	if (layerUnits == 'degrees'){
+		throw new Exception('Cannot query data whose units are degrees')
+	}
+	return layerUnits
+}
+
+def getNewSchema(layer, requestedPrj){
 	List fields = []
 	layer.schema.fields.each { field ->
 		if (field == layer.schema.geom){
@@ -76,18 +93,25 @@ def getSNewSchema(layer, requestedPrj){
 	return new Schema(layer.name, fields)
 }
 
-def addDistance(layer, features, point, requestedPrj){
-	def layerPrj = layer.getProj().getEpsg()
-	Schema schema = getSNewSchema(layer, requestedPrj)
+def addDistance(layer, features, point, requestedPrj, units){
+	def layerPrj = layer.getProj()
+	def layerUnits = getLayerUnits(layerPrj)
+	Schema schema = getNewSchema(layer, requestedPrj)
 	List outFeatures = []
 
 	features.each { inFeature ->
-		def geom = Projection.transform(inFeature.getGeom(), "epsg:${layerPrj}", requestedPrj)
-		def distance = geom.distance(point)
+		def inGeom = inFeature.getGeom()
+		def outGeom = Projection.transform(inGeom, "epsg:${layerPrj.getEpsg()}", requestedPrj)
+		def prjPoint = Projection.transform(point, requestedPrj, "epsg:${layerPrj.getEpsg()}")
+		
+		def distance = inGeom.distance(prjPoint)
+		distance = convertUnits(distance, layerUnits, units)
+		
 		def attrs = inFeature.getAttributes()
 		attrs.put('distance', distance)
+		
 		Feature outFeature = new Feature(attrs, inFeature.getId())
-		outFeature.setGeom(geom)
+		outFeature.setGeom(outGeom)
 		outFeatures.add(outFeature)
 	}
 	

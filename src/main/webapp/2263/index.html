@@ -24,10 +24,21 @@
 		 	bottom: 0;
 		 	right: 0;
 		 }
+		 #input {
+		 	position: fixed;
+		 	top: 0;
+		 	left: 0;
+		 	width: 280px;
+		 	margin: 0 5px;
+		 }
 	</style>
 </head>
 <body>
 	<div id="map"></div>
+	<div id="input">
+		<button id="go">Find within specified distance...</button>
+		<input id="distance" value="30000 feet">
+	</div>
 	<script>
 		var map, boroSrc, boroLyr, proxSrc, proxLyr;
 
@@ -44,7 +55,7 @@
 				return new ol.style.Style({
 					stroke: new ol.style.Stroke({width: 2, color: 'blue'}),
 					text: new ol.style.Text({
-						text: feature.get('distance').toFixed(2)
+						text: (feature.get('distance')*0.3048).toFixed(2) + '\n' + feature.getGeometry().getLength().toFixed(2)
 					})
 				});
 			}else{
@@ -58,12 +69,40 @@
 			}
 		};
 		
-		function prox(event){
-			var coord = event.coordinate;
+		var boroStyle = new ol.style.Style({
+			image: new ol.style.Circle({
+				stroke: new ol.style.Stroke({width: 2, color: 'black'}),
+				fill: new ol.style.Fill({color: 'white'}),
+				radius: 15
+			})
+		});
+
+		function proxStyle(feature, resolution){
+			if (feature.getGeometry().getType() == 'LineString'){
+				return new ol.style.Style({
+					stroke: new ol.style.Stroke({width: 2, color: 'blue'}),
+					text: new ol.style.Text({
+						text: feature.get('distance').toFixed(2) + ' ' + $('#distance').val().split(' ')[1]
+					})
+				});
+			}else{
+				return new ol.style.Style({
+					image: new ol.style.Circle({
+						stroke: new ol.style.Stroke({width: 2, color: 'blue'}),
+						fill: new ol.style.Fill({color: 'lightblue'}),
+						radius: 5
+					})
+				});
+			}
+		};
+		
+		function prox(){
+			var coord = [1020036.8273209078,181907.22472845024];
+			var d = $('#distance').val().split(' ');
 			var url = '/geoserver/wps?service=WPS&version=1.0.0&request=Execute&identifier=groovy:ProximityWps&DataInputs=';
-			url += 'distance=' + prompt('how far?', 1000);
-			url += ';units=' + prompt('units?', 'meters'); 
-			url += ';srs=epsg:900913';
+			url += 'distance=' + d[0];
+			url += ';units=' + d[1]; 
+			url += ';srs=epsg:2263';
 			url += ';x=' + coord[0];
 			url += ';y=' + coord[1];
 			url += ';layer=test:boro&RawDataOutput=result=format@mimetype=application/json';			
@@ -90,8 +129,9 @@
 		};
 		
 		$(document).ready(function(){
+			
 			boroSrc = new ol.source.Vector({
-				url: '/geoserver/wfs?request=GetFeature&version=1.1.0&srsName=EPSG:900913&typeName=test:boro&outputFormat=application/json',
+				url: '/geoserver/wfs?request=GetFeature&version=1.1.0&typeName=test:boro&outputFormat=application/json',
 				format: new ol.format.GeoJSON()
 			});
 			boroLyr = new ol.layer.Vector({source: boroSrc, zIndex: 1000, style: boroStyle});
@@ -99,12 +139,24 @@
 			proxSrc = new ol.source.Vector();
 			proxLyr = new ol.layer.Vector({source: proxSrc, zIndex: 1001, style: proxStyle});
 			
-			map = new nyc.ol.Basemap({
+			var map = new ol.Map({
 				target: $('#map').get(0),
-				layers: [boroLyr, proxLyr]
+				layers: [new nyc.ol.layer.BaseLayer(), boroLyr, proxLyr],
+				view: new ol.View({
+					projection: 'EPSG:2263',
+					resolutions: nyc.ol.layer.BaseLayer.RESOLUTIONS,
+					zoom: 0,
+					center: nyc.ol.CENTER
+				})
 			});
 			
-			map.on('click', prox);
+			$('#go').click(prox);
+			$('#distance').keyup(function(event){
+				if (event.which == 13){
+					prox();	
+				}
+			});
+
 		});
 	</script>
 </body>
