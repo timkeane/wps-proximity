@@ -13,8 +13,6 @@ import geoscript.feature.*
 import geoscript.proj.Projection
 
 CATALOG = new GeoServer().catalog
-WKT = new WktWriter()
-UNITS = [foot_survey_us: 'feet', m: 'meters' , '°': 'degrees']
 
 /* Begin GeoServer WPS metadata */
 
@@ -37,7 +35,7 @@ outputs = [
 /* End GeoServer WPS metadata */
 
 def run(input){
-	def layer = CATALOG.getLayer(input.layer).geoScriptLayer
+	def layer = getLayer(input.layer)
 	def distance = input.distance
 	def units = input.units
 	def requestedPrj = input.srs
@@ -54,7 +52,7 @@ def getFilter(layer, distance, units, requestedPrj, point){
 	def qDistance = convertUnits(distance, units, layerUnits)
 	def geomCol = layer.schema.geom.name
 	def prjPoint = Projection.transform(point, requestedPrj, "epsg:${layerPrj.getEpsg()}")
-	prjPoint = WKT.write(prjPoint)
+	prjPoint = new WktWriter().write(prjPoint)
 	return "DWITHIN(${geomCol}, ${prjPoint}, ${qDistance}, ${layerUnits})"
 }
 
@@ -73,7 +71,7 @@ def convertUnits(distance, fromUnits, toUnits){
 def getLayerUnits(layerPrj){
 	def crs = layerPrj.crs.getCoordinateSystem()
 	def axis = crs.getAxis(crs.getDimension() - 1)
-	def layerUnits = UNITS.get(axis.getUnit().toString())
+	def layerUnits = getUnits(axis.getUnit().toString())
 	if (layerUnits == 'degrees'){
 		throw new Exception('Cannot query data whose units are degrees')
 	}
@@ -122,6 +120,18 @@ def addDistance(layer, features, point, requestedPrj, units){
 	}
 	
 	return result
+}
+
+def getLayer(layer){
+	return getGeoserver().catalog.getLayer(layer).geoScriptLayer
+}
+
+def getGeoServer(){
+	return new GeoServer()
+}
+
+def getUnits(units){
+	return [foot_survey_us: 'feet', m: 'meters' , '°': 'degrees'].get(units)
 }
 
 //http://localhost:8080/geoserver/wps?service=WPS&version=1.0.0&request=Execute&identifier=groovy:ProximityWps&DataInputs=distance=1000;units=feet;srs=epsg:2263;x=993020;y=222220;layer=test:boro&RawDataOutput=result=format@mimetype=application/json
