@@ -94,7 +94,7 @@ class ProximityWpsTest extends Specification {
 	}
 
 	def 'test getFilter when point (2263) and layer (2263) are same proj and distance units (feet) are same as layer(feet)'(){
-		when:
+		given:
 			 def wps = new ProximityWps()
 			 def point = new Point(1, 2)
 			 Field fieldMock = Mock {
@@ -107,14 +107,15 @@ class ProximityWpsTest extends Specification {
 				 1 * getProj() >> new Projection('epsg:2263')
 				 1 * getSchema() >> schemaMock
 				 
-			 }			 
+			 }
+		 when:
+		 	def filter = wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point)
 		 then:
-		 	assert wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point) == 'DWITHIN(the_geom, POINT (1 2), 3, feet)'
-		 
+		 	assert filter == 'DWITHIN(the_geom, POINT (1 2), 3, feet)'
 	}
 
 	def 'test getFilter when point (2263) and layer (3857) are different proj and distance units (meters) are same as layer (meters)'(){
-		when:
+		given:
 			 def wps = new ProximityWps()
 			 def point = new Point(1, 2)
 			 Field fieldMock = Mock {
@@ -126,14 +127,15 @@ class ProximityWpsTest extends Specification {
 			 Layer layerMock = Mock {
 				 1 * getProj() >> new Projection('epsg:3857')
 				 1 * getSchema() >> schemaMock
-			 }			 
+			 }
+		 when:
+		 	def filter = wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point)
 		 then:
-		 	assert wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point) == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 3, meters)'
-			 
+		 	assert filter == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 3, meters)'
 	}
 
 	def 'test getFilter when point (2263) and layer (3857) are different proj and distance units (feet) are different from layer (meters)'(){
-		when:
+		given:
 			 def wps = new ProximityWps()
 			 def point = new Point(1, 2)
 			 Field fieldMock = Mock {
@@ -146,12 +148,14 @@ class ProximityWpsTest extends Specification {
 				 1 * getProj() >> new Projection('epsg:3857')
 				 1 * getSchema() >> schemaMock
 			 }			 
+		 when:
+		 	def filter = wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point)
 		 then:
-		 	assert wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point) == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 0.9144, meters)'
+		 	assert filter == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 0.9144, meters)'
 	}
 	
 	def 'test getFilter when point (2263) and layer (2263) are same proj and distance units (meters) are different from layer (feet)'(){
-		when:
+		given:
 			 def wps = new ProximityWps()
 			 def point = new Point(1, 2)
 			 Field fieldMock = Mock {
@@ -163,34 +167,39 @@ class ProximityWpsTest extends Specification {
 			 Layer layerMock = Mock {
 				 1 * getProj() >> new Projection('epsg:2263')
 				 1 * getSchema() >> schemaMock
-			 }			 
+			 }
+		 when:
+		 	def filter = wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point)
 		 then:
-		 	assert wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point) == 'DWITHIN(the_geom, POINT (1 2), 9.84252, feet)'
+		 	assert filter == 'DWITHIN(the_geom, POINT (1 2), 9.84252, feet)'
 	}
 	
 	def 'test getNewSchema where requested proj (2263) is same as layer proj (2263)'(){
-		when:
+		given:
 			def wps = new ProximityWps()
 			Schema schema = new Schema("testlayer","geom:Point:srid=2263,name:String,address:String")
 			geoscript.layer.Layer layerMock = Mock {
 				 2 * getSchema() >> schema
 				 1 * getName() >> 'testLayer'
 			}
+		when:
+			def newSchema = wps.getNewSchema(layerMock, 'epsg:2263')
 		then:
-			assert wps.getNewSchema(layerMock, 'epsg:2263').toString() == 'testLayer geom: Point(EPSG:2263), name: String, address: String, distance: Double'
+			assert newSchema.toString() == 'testLayer geom: Point(EPSG:2263), name: String, address: String, distance: Double'
 	}
 
 	def 'test getNewSchema where requested proj (3857) is different as layer proj (2263)'(){
-		when:
+		given:
 			def wps = new ProximityWps()
 			Schema schema = new Schema("testlayer","geom:Point:srid=2263,name:String,address:String")
 			geoscript.layer.Layer layerMock = Mock {
 				 2 * getSchema() >> schema
 				 1 * getName() >> 'testLayer'
 			}
+		when:
+			def newSchema = wps.getNewSchema(layerMock, 'epsg:3857')
 		then:
-			assert wps.getNewSchema(layerMock, 'epsg:3857').toString() == 'testLayer geom: Point(EPSG:3857), name: String, address: String, distance: Double'
-
+			assert newSchema.toString() == 'testLayer geom: Point(EPSG:3857), name: String, address: String, distance: Double'
 	}	
 	
 }
