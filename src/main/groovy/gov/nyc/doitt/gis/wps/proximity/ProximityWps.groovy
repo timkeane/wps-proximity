@@ -82,8 +82,9 @@ def getFilter(layer, distance, units, requestedPrj, point){
 
 def getNewSchema(layer, requestedPrj){
 	List fields = []
+	def geomField = layer.schema.geom
 	layer.schema.fields.each { field ->
-		if (field == layer.schema.geom){
+		if (field == geomField){
 			fields.add(new Field(field.name, field.typ, requestedPrj))
 		}else{
 			fields.add(field)
