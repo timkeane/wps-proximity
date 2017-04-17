@@ -12,8 +12,6 @@ import geoscript.geom.io.WktWriter
 import geoscript.feature.*
 import geoscript.proj.Projection
 
-CATALOG = new GeoServer().catalog
-
 /* Begin GeoServer WPS metadata */
 
 title = 'Proximity'
@@ -46,16 +44,6 @@ def run(input){
 	return [result: result]
 }
 
-def getFilter(layer, distance, units, requestedPrj, point){
-	def layerPrj = layer.getProj()
-	def layerUnits = getLayerUnits(layerPrj)
-	def qDistance = convertUnits(distance, units, layerUnits)
-	def geomCol = layer.schema.geom.name
-	def prjPoint = Projection.transform(point, requestedPrj, "epsg:${layerPrj.getEpsg()}")
-	prjPoint = new WktWriter().write(prjPoint)
-	return "DWITHIN(${geomCol}, ${prjPoint}, ${qDistance}, ${layerUnits})"
-}
-
 def convertUnits(distance, fromUnits, toUnits){
 	def result = distance	
 	if (fromUnits != toUnits){
@@ -69,13 +57,27 @@ def convertUnits(distance, fromUnits, toUnits){
 }
 
 def getLayerUnits(layerPrj){
+	def LOG = new File('wps.log')
+	LOG.append("${layerPrj.getEpsg()}\n")
 	def crs = layerPrj.crs.getCoordinateSystem()
 	def axis = crs.getAxis(crs.getDimension() - 1)
 	def layerUnits = getUnits(axis.getUnit().toString())
-	if (layerUnits == 'degrees'){
-		throw new Exception('Cannot query data whose units are degrees')
+	LOG.append("${axis.getUnit().toString()}\n")
+	LOG.append("${layerUnits}\n")
+	if (layerUnits == null){
+		throw new Exception('Cannot query data whose units are not meters or feet')
 	}
 	return layerUnits
+}
+
+def getFilter(layer, distance, units, requestedPrj, point){
+	def layerPrj = layer.getProj()
+	def layerUnits = getLayerUnits(layerPrj)
+	def qDistance = convertUnits(distance, units, layerUnits)
+	def geomCol = layer.schema.geom.name
+	def prjPoint = Projection.transform(point, requestedPrj, "epsg:${layerPrj.getEpsg()}")
+	prjPoint = new WktWriter().write(prjPoint)
+	return "DWITHIN(${geomCol}, ${prjPoint}, ${qDistance}, ${layerUnits})"
 }
 
 def getNewSchema(layer, requestedPrj){
@@ -123,7 +125,11 @@ def addDistance(layer, features, point, requestedPrj, units){
 }
 
 def getLayer(layer){
-	return getGeoserver().catalog.getLayer(layer).geoScriptLayer
+	return getCatalog().getLayer(layer).getGeoScriptLayer()
+}
+
+def getCatalog(){
+	return getGeoServer().catalog
 }
 
 def getGeoServer(){
@@ -131,7 +137,7 @@ def getGeoServer(){
 }
 
 def getUnits(units){
-	return [foot_survey_us: 'feet', m: 'meters' , '°': 'degrees'].get(units)
+	return [foot_survey_us: 'feet', m: 'meters'].get(units)
 }
 
 //http://localhost:8080/geoserver/wps?service=WPS&version=1.0.0&request=Execute&identifier=groovy:ProximityWps&DataInputs=distance=1000;units=feet;srs=epsg:2263;x=993020;y=222220;layer=test:boro&RawDataOutput=result=format@mimetype=application/json
