@@ -19,6 +19,7 @@ class ProximityWpsTest extends Specification {
 	def 'test getUnits'(){
 		when:
 			def wps = new ProximityWps()
+			
 		then:
 			assert wps != null
 			assert wps.getUnits('foot_survey_us') == 'feet'
@@ -38,8 +39,9 @@ class ProximityWpsTest extends Specification {
 			GeoServer geoserverMock = Mock {
 				1 * getCatalog() >> catalogMock
 			}
-			ProximityWps.metaClass.getGeoServer = {geoserverMock}
  			def wps = new ProximityWps()
+			wps.metaClass.getGeoServer = {geoserverMock}
+			
 		then:
 			assert wps.getLayer('testLayer') == geoScriptLayer
 	}
@@ -47,6 +49,7 @@ class ProximityWpsTest extends Specification {
 	def 'test convertUnits from feet to meters'(){
 		when:
  			def wps = new ProximityWps()
+			 
 		then:
 			assert wps.convertUnits(1, 'feet', 'meters') == 0.3048
 			assert wps.convertUnits(123.456, 'feet', 'meters') == 37.6293888
@@ -55,6 +58,7 @@ class ProximityWpsTest extends Specification {
 	def 'test convertUnits from meters to feet'(){
 		when:
 			 def wps = new ProximityWps()
+			 
 		then:
 			assert wps.convertUnits(1, 'meters', 'feet') == 3.28084
 			assert wps.convertUnits(654.321,'meters', 'feet') == 2146.72250964
@@ -63,6 +67,7 @@ class ProximityWpsTest extends Specification {
 	def 'test convertUnits where units are same'(){
 		when: 
 			def wps = new ProximityWps()
+			
 		then: 
 			assert wps.convertUnits(1, 'meters', 'meters') == 1
 			assert wps.convertUnits(46,'feet', 'feet') == 46
@@ -72,6 +77,7 @@ class ProximityWpsTest extends Specification {
 		when:
 			 def wps = new ProximityWps()
 			 def proj = new Projection('epsg:2263')
+			 
 		then:
 			assert wps.getLayerUnits(proj) == 'feet'
 	}
@@ -80,6 +86,7 @@ class ProximityWpsTest extends Specification {
 		when:
 			 def wps = new ProximityWps()
 			 def proj = new Projection('epsg:3857')
+			 
 		then:
 			assert wps.getLayerUnits(proj) == 'meters'
 	}
@@ -88,6 +95,7 @@ class ProximityWpsTest extends Specification {
 		when:
 			 def wps = new ProximityWps()
 			 def proj = new Projection('epsg:3857')
+			 
 		then:
 			assert wps.getLayerUnits(proj) == 'meters'
 	}
@@ -97,6 +105,7 @@ class ProximityWpsTest extends Specification {
 			 def wps = new ProximityWps()
 			 def proj = new Projection('epsg:4326')
 			 wps.getLayerUnits(proj)
+			 
 		 then:
 		 	thrown Exception
 	}
@@ -116,8 +125,10 @@ class ProximityWpsTest extends Specification {
 				 1 * getSchema() >> schemaMock
 				 
 			 }
+			 
 		 when:
 		 	def filter = wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point)
+			 
 		 then:
 		 	assert filter == 'DWITHIN(the_geom, POINT (1 2), 3, feet)'
 	}
@@ -136,8 +147,10 @@ class ProximityWpsTest extends Specification {
 				 1 * getProj() >> new Projection('epsg:3857')
 				 1 * getSchema() >> schemaMock
 			 }
+			 
 		 when:
 		 	def filter = wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point)
+			 
 		 then:
 		 	assert filter == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 3, meters)'
 	}
@@ -155,9 +168,11 @@ class ProximityWpsTest extends Specification {
 			 Layer layerMock = Mock {
 				 1 * getProj() >> new Projection('epsg:3857')
 				 1 * getSchema() >> schemaMock
-			 }			 
+			 }
+			 
 		 when:
 		 	def filter = wps.getFilter(layerMock, 3, 'feet', 'epsg:2263', point)
+			 
 		 then:
 		 	assert filter == 'DWITHIN(the_geom, POINT (-8629440.293092024 4882288.084173), 0.9144, meters)'
 	}
@@ -176,8 +191,10 @@ class ProximityWpsTest extends Specification {
 				 1 * getProj() >> new Projection('epsg:2263')
 				 1 * getSchema() >> schemaMock
 			 }
+			 
 		 when:
 		 	def filter = wps.getFilter(layerMock, 3, 'meters', 'epsg:2263', point)
+			 
 		 then:
 		 	assert filter == 'DWITHIN(the_geom, POINT (1 2), 9.84252, feet)'
 	}
@@ -190,8 +207,10 @@ class ProximityWpsTest extends Specification {
 				 2 * getSchema() >> schema
 				 1 * getName() >> 'testLayer'
 			}
+			
 		when:
 			def newSchema = wps.getNewSchema(layerMock, 'epsg:2263')
+			
 		then:
 			assert newSchema.toString() == 'testLayer geom: Point(EPSG:2263), name: String, address: String, distance: Double'
 	}
@@ -204,8 +223,10 @@ class ProximityWpsTest extends Specification {
 				 2 * getSchema() >> schema
 				 1 * getName() >> 'testLayer'
 			}
+			
 		when:
 			def newSchema = wps.getNewSchema(layerMock, 'epsg:3857')
+			
 		then:
 			assert newSchema.toString() == 'testLayer geom: Point(EPSG:3857), name: String, address: String, distance: Double'
 	}	
@@ -234,7 +255,6 @@ class ProximityWpsTest extends Specification {
 				assert it.get('distance') >= prevDist //sorted by distance
 				prevDist = it.get('distance')
 			}
-			
 	}
 	
 	def 'test addDistance when point (2263) and layer (2263) are same proj and distance units (meters) are different as layer (feet)' (){
@@ -260,13 +280,11 @@ class ProximityWpsTest extends Specification {
 
 				def actualDistance = it.get('distance')
 				def expectedDistance = point.distance(it.getGeom()) * 0.3048
-				
 				assert actualDistance == expectedDistance
-				
 				assert it.get('distance') >= prevDist //sorted by distance
+				
 				prevDist = it.get('distance')
 			}
-			
 	}
 
 	def 'test addDistance when point (2263) and layer (3857) are different proj and distance units (meters) are same as layer (meters)' (){
@@ -281,7 +299,6 @@ class ProximityWpsTest extends Specification {
 		when:
 			def result = wps.addDistance(testLayer, inputFeatures, prjPoint, 'epsg:3857', 'meters')
 			def outputFeatures = result.getFeatures()
-			
 		
 		then:
 			assert result.schema.toString() == 'testLayer geom: Point(EPSG:3857), name: String, address: String, distance: Double'
@@ -291,13 +308,10 @@ class ProximityWpsTest extends Specification {
 				assert it.getGeom() == inputFeature.getGeom()
 				assert it.get('name') == inputFeature.get('name')
 				assert it.get('address') == inputFeature.get('address')
-				
 				assert it.get('distance') == prjPoint.distance(it.getGeom())
-				
 				assert it.get('distance') >= prevDist //sorted by distance
 				prevDist = it.get('distance')
 			}
-			
 	}
 	
 	def 'test addDistance when point (2263) and layer (3857) are different proj and distance units (feet) are different from layer (meters)' (){
@@ -318,17 +332,13 @@ class ProximityWpsTest extends Specification {
 			assert outputFeatures.size() == 4
 			outputFeatures.each {
 				def inputFeature = featureByName(testLayer, it.get('name'))
-				
 				assert it.getGeom() == Projection.transform(inputFeature.getGeom(), 'epsg:3857', 'epsg:2263')
 				assert it.get('name') == inputFeature.get('name')
 				assert it.get('address') == inputFeature.get('address')
-				
 				assert it.get('distance') == prjPoint.distance(inputFeature.getGeom()) * 3.28084 // meters to feet
-				
 				assert it.get('distance') >= prevDist //sorted by distance
 				prevDist = it.get('distance')
 			}
-				
 	}
 	
 	def 'test run when point (2263) and layer (2263) are same proj and distance units (feet) are same as layer (feet)' () {
@@ -343,17 +353,11 @@ class ProximityWpsTest extends Specification {
 			GeoServer geoserverMock = Mock {
 				1 * getCatalog() >> catalogMock
 			}
-			ProximityWps.metaClass.getGeoServer = {geoserverMock}
  			
-			def inputs = [
-					srs: 'epsg:2263',
-					x: 1,
-					y: 2,
-					layer: 'testLayer',
-					distance: 20,
-					units: 'feet'
-				]
 			def wps = new ProximityWps()
+			wps.metaClass.getGeoServer = {geoserverMock}
+			
+			def inputs = [srs: 'epsg:2263', x: 1, y: 2, layer: 'testLayer', distance: 20, units: 'feet']
 			def point = new Point(inputs.x, inputs.y)
 			def prevDist = -1
 		
@@ -386,17 +390,11 @@ class ProximityWpsTest extends Specification {
 			GeoServer geoserverMock = Mock {
 				1 * getCatalog() >> catalogMock
 			}
-			ProximityWps.metaClass.getGeoServer = {geoserverMock}
  			
-			def inputs = [
-					srs: 'epsg:2263',
-					x: 1,
-					y: 2,
-					layer: 'testLayer',
-					distance: 6,
-					units: 'meters'
-				]
 			def wps = new ProximityWps()
+			wps.metaClass.getGeoServer = {geoserverMock}
+
+			def inputs = [srs: 'epsg:2263', x: 1, y: 2, layer: 'testLayer', distance: 6, units: 'meters']
 			def point = new Point(inputs.x, inputs.y)
 			def prevDist = -1
 		
@@ -429,18 +427,11 @@ class ProximityWpsTest extends Specification {
 			GeoServer geoserverMock = Mock {
 				1 * getCatalog() >> catalogMock
 			}
-			ProximityWps.metaClass.getGeoServer = {geoserverMock}
  		
-			
-			def inputs = [
-					srs: 'epsg:2263',
-					x: 31130690,
-					y:  -2279922,
-					layer: 'testLayer',
-					distance: 60,
-					units: 'feet'
-				]
 			def wps = new ProximityWps()
+			wps.metaClass.getGeoServer = {geoserverMock}
+
+			def inputs = [srs: 'epsg:2263', x: 31130690, y:  -2279922, layer: 'testLayer', distance: 60, units: 'feet']
 			def point = new Point (inputs.x, inputs.y)
 			def prevDist = -1
 			def prjPoint = Projection.transform(point, 'epsg:2263', 'epsg:3857') //project point to layer proj
@@ -448,6 +439,7 @@ class ProximityWpsTest extends Specification {
 		when: 
 			def result = wps.run(inputs)
 			def outputFeatures = result.result.getFeatures()
+			
 		then:			
 			assert outputFeatures.size() == 2
 			outputFeatures.each {
@@ -472,24 +464,20 @@ class ProximityWpsTest extends Specification {
 			}
 			GeoServer geoserverMock = Mock {
 				1 * getCatalog() >> catalogMock
-			}
-			ProximityWps.metaClass.getGeoServer = {geoserverMock}
- 		
-			def inputs = [
-					srs: 'epsg:3857',
-					x: -12684158,
-					y: 6011883,
-					layer: 'testLayer',
-					distance: 9914835,
-					units: 'feet'
-				]
+			} 		
+			
 			def wps = new ProximityWps()
+			wps.metaClass.getGeoServer = {geoserverMock}
+			
+			def inputs = [srs: 'epsg:3857', x: -12684158, y: 6011883, layer: 'testLayer', distance: 9914835, units: 'feet']
 			def point = new Point (inputs.x, inputs.y)
 			def prevDist = -1
 			def prjPoint = Projection.transform(point, 'epsg:3857', 'epsg:2263') //project point to layer proj
+			
 		when: 
 			def result = wps.run(inputs)
 			def outputFeatures = result.result.getFeatures()
+			
 		then:			
 			assert outputFeatures.size() == 2
 			outputFeatures.each {
@@ -515,14 +503,12 @@ class ProximityWpsTest extends Specification {
 	
 	def createTestLayerWithFeatures(projection){
 		Schema schema = new Schema("testLayer","geom:Point:srid=${projection},name:String,address:String")
-
 		List inputPoints = [
 			[geom: new Point(1, 10), name: 'New DoITT', address: '2 Metrotech'],
 			[geom: new Point(10, 20), name: 'Old DoITT', address: '59 Maiden'],
 			[geom: new Point(20, 2), name: 'City Hall', address: 'City Hall'],
 			[geom: new Point(20, 2), name: 'Mayor', address: 'City Hall']
 		]
-	
 		def testLayer = new Layer('testLayer', schema)
 		inputPoints.eachWithIndex { attrs, id ->
 			Feature f = new Feature(attrs, "f.${id}", schema)
