@@ -57,13 +57,9 @@ def convertUnits(distance, fromUnits, toUnits){
 }
 
 def getLayerUnits(layerPrj){
-	def LOG = new File('wps.log')
-	LOG.append("${layerPrj.getEpsg()}\n")
 	def crs = layerPrj.crs.getCoordinateSystem()
 	def axis = crs.getAxis(crs.getDimension() - 1)
 	def layerUnits = getUnits(axis.getUnit().toString())
-	LOG.append("${axis.getUnit().toString()}\n")
-	LOG.append("${layerUnits}\n")
 	if (layerUnits == null){
 		throw new Exception('Cannot query data whose units are not meters or feet')
 	}
@@ -111,7 +107,7 @@ def addDistance(layer, features, point, requestedPrj, units){
 		def attrs = inFeature.getAttributes()
 		attrs.put('distance', distance)
 		
-		Feature outFeature = new Feature(attrs, inFeature.getId())
+		Feature outFeature = new Feature(attrs, inFeature.getId(), schema)
 		outFeature.setGeom(outGeom)
 		outFeatures.add(outFeature)
 	}
